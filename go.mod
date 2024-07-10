@@ -1,8 +1,6 @@
-module go.osspkg.com/x/ioutils
+module go.osspkg.com/ioutils
 
 go 1.21
-
-toolchain go1.21.4
 
 require (
 	go.osspkg.com/casecheck v0.3.0
