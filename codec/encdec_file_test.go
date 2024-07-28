@@ -3,7 +3,7 @@
  *  Use of this source code is governed by a BSD 3-Clause license that can be found in the LICENSE file.
  */
 
-package ioutils
+package codec
 
 import (
 	"os"
@@ -12,7 +12,7 @@ import (
 	"go.osspkg.com/casecheck"
 )
 
-func TestFile_EncodeDecode(t *testing.T) {
+func TestFile_File_EncodeDecode(t *testing.T) {
 	type TestDataItem1 struct {
 		AA string `yaml:"aa"`
 		BB bool   `yaml:"bb"`
