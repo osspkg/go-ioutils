@@ -3,7 +3,7 @@
  *  Use of this source code is governed by a BSD 3-Clause license that can be found in the LICENSE file.
  */
 
-package ioutils
+package fs
 
 import (
 	"io"
@@ -21,12 +21,18 @@ func CurrentDir() string {
 	return dir
 }
 
-func Exist(filename string) bool {
+func ParentFolder(filename string) string {
+	dir := filepath.Dir(filename)
+	tree := strings.Split(dir, string(os.PathSeparator))
+	return tree[len(tree)-1]
+}
+
+func FileExist(filename string) bool {
 	_, err := os.Stat(filename)
 	return err == nil
 }
 
-func Search(dir, filename string) ([]string, error) {
+func SearchFiles(dir, filename string) ([]string, error) {
 	files := make([]string, 0, 2)
 	err := filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
@@ -41,7 +47,7 @@ func Search(dir, filename string) ([]string, error) {
 	return files, err
 }
 
-func SearchByExt(dir, ext string) ([]string, error) {
+func SearchFilesByExt(dir, ext string) ([]string, error) {
 	files := make([]string, 0, 2)
 	err := filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
@@ -56,8 +62,8 @@ func SearchByExt(dir, ext string) ([]string, error) {
 	return files, err
 }
 
-func Rewrite(filename string, call func([]byte) ([]byte, error)) error {
-	if !Exist(filename) {
+func RewriteFile(filename string, call func([]byte) ([]byte, error)) error {
+	if !FileExist(filename) {
 		if err := os.WriteFile(filename, []byte(""), 0755); err != nil {
 			return err
 		}
@@ -72,7 +78,7 @@ func Rewrite(filename string, call func([]byte) ([]byte, error)) error {
 	return os.WriteFile(filename, b, 0755)
 }
 
-func Copy(dst, src string, mode os.FileMode) error {
+func CopyFile(dst, src string, mode os.FileMode) error {
 	source, err := os.OpenFile(src, os.O_RDONLY, 0)
 	if err != nil {
 		return err
@@ -95,10 +101,4 @@ func Copy(dst, src string, mode os.FileMode) error {
 
 	_, err = io.Copy(dist, source)
 	return err
-}
-
-func Folder(filename string) string {
-	dir := filepath.Dir(filename)
-	tree := strings.Split(dir, string(os.PathSeparator))
-	return tree[len(tree)-1]
 }

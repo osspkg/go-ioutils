@@ -3,7 +3,7 @@
  *  Use of this source code is governed by a BSD 3-Clause license that can be found in the LICENSE file.
  */
 
-package ioutils
+package pool
 
 import "sync"
 
@@ -16,7 +16,7 @@ type Pool[T TPool] struct {
 	pool    sync.Pool
 }
 
-func NewPool[T TPool](callNew func() T) *Pool[T] {
+func New[T TPool](callNew func() T) *Pool[T] {
 	return &Pool[T]{
 		pool: sync.Pool{New: func() any { return callNew() }},
 	}
@@ -41,10 +41,4 @@ type SlicePool[T any] struct {
 
 func (v *SlicePool[T]) Reset() {
 	v.B = v.B[:0]
-}
-
-func NewSlicePool[T any](l, c int) *Pool[*SlicePool[T]] {
-	return NewPool(func() *SlicePool[T] {
-		return &SlicePool[T]{B: make([]T, l, c)}
-	})
 }

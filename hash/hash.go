@@ -3,7 +3,7 @@
  *  Use of this source code is governed by a BSD 3-Clause license that can be found in the LICENSE file.
  */
 
-package ioutils
+package hash
 
 import (
 	"encoding/hex"
@@ -15,7 +15,7 @@ import (
 	"go.osspkg.com/errors"
 )
 
-func IsValidFileHash(filename string, h hash.Hash, valid string) error {
+func ValidateFile(filename string, h hash.Hash, valid string) error {
 	r, err := os.Open(filename)
 	if err != nil {
 		return err
@@ -32,7 +32,7 @@ func IsValidFileHash(filename string, h hash.Hash, valid string) error {
 	return nil
 }
 
-func FileHash(filename string, h hash.Hash) (string, error) {
+func CreateFromFile(filename string, h hash.Hash) (string, error) {
 	r, err := os.Open(filename)
 	if err != nil {
 		return "", err
