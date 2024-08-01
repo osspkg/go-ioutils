@@ -7,6 +7,7 @@ package ioutils
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 
 	"go.osspkg.com/errors"
@@ -107,4 +108,25 @@ func WriteBytes(v io.Writer, b []byte, divide string) error {
 		return err
 	}
 	return nil
+}
+
+const copyBufferSize = 512
+
+func Copy(w io.Writer, r io.Reader) (int, error) {
+	n := 0
+	buff := make([]byte, copyBufferSize)
+	for {
+		m, err1 := r.Read(buff)
+		if m < 0 {
+			return 0, fmt.Errorf("reader err: negative read bytes")
+		}
+		n += m
+		_, err2 := w.Write(buff[:m])
+		if err2 != nil {
+			return 0, fmt.Errorf("writer err: %w", err2)
+		}
+		if m == 0 || m < copyBufferSize || errors.Is(err1, io.EOF) {
+			return n, nil
+		}
+	}
 }
