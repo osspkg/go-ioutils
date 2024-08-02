@@ -120,12 +120,15 @@ func Copy(w io.Writer, r io.Reader) (int, error) {
 		if m < 0 {
 			return 0, fmt.Errorf("reader err: negative read bytes")
 		}
+		if err1 != nil && !errors.Is(err1, io.EOF) {
+			return 0, err1
+		}
 		n += m
 		_, err2 := w.Write(buff[:m])
 		if err2 != nil {
 			return 0, fmt.Errorf("writer err: %w", err2)
 		}
-		if m == 0 || m < copyBufferSize || errors.Is(err1, io.EOF) {
+		if m < copyBufferSize || errors.Is(err1, io.EOF) {
 			return n, nil
 		}
 	}
