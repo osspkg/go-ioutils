@@ -57,7 +57,8 @@ func (v *withTTL[K, T]) Get(key K) (T, bool) {
 
 	item, ok := v.list[key]
 	if !ok {
-		return *(new(T)), false
+		var zeroValue T
+		return zeroValue, false
 	}
 
 	return item.link, true
@@ -70,6 +71,16 @@ func (v *withTTL[K, T]) Set(key K, value T) {
 	v.list[key] = &ttlItem[T]{
 		link: value,
 		ts:   time.Now().Add(v.ttl).Unix(),
+	}
+}
+
+func (v *withTTL[K, T]) SetWithTTL(key K, value T, ttl time.Time) {
+	v.mux.Lock()
+	defer v.mux.Unlock()
+
+	v.list[key] = &ttlItem[T]{
+		link: value,
+		ts:   ttl.Unix(),
 	}
 }
 

@@ -6,6 +6,9 @@
 package pool
 
 import (
+	"bytes"
+	"io"
+	"sync"
 	"testing"
 
 	"go.osspkg.com/casecheck"
@@ -37,4 +40,29 @@ func Benchmark_Pool(b *testing.B) {
 		}
 	})
 
+}
+
+func TestUnit_PoolBytesBuffer(t *testing.T) {
+	bp := New[*bytes.Buffer](func() *bytes.Buffer {
+		return bytes.NewBuffer(make([]byte, 0, 1024))
+	})
+
+	var wg sync.WaitGroup
+
+	for i := 0; i < 1000; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			w := bp.Get()
+			defer func() {
+				bp.Put(w)
+			}()
+
+			w.WriteString("qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq")
+			io.Copy(io.Discard, w)
+		}()
+	}
+
+	wg.Wait()
 }

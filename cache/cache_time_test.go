@@ -13,7 +13,8 @@ func TestUnit_WithTTL_Pointer(t *testing.T) {
 		Data uint64
 	}
 
-	ctx, _ := context.WithTimeout(context.TODO(), time.Second)
+	ctx, cncl := context.WithTimeout(context.TODO(), time.Second)
+	defer cncl()
 	c := NewWithTTL[string, *A](ctx, time.Minute)
 	v, ok := c.Get("a")
 	casecheck.False(t, ok)
