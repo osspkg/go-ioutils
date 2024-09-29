@@ -2,12 +2,21 @@ package cache
 
 import "time"
 
-type TCache[K comparable, T interface{}] interface {
+type TCache[K comparable, V interface{}] interface {
 	Has(key K) bool
-	Get(key K) (T, bool)
-	Set(key K, value T)
-	SetWithTTL(key K, value T, ttl time.Time)
+	Get(key K) (V, bool)
+	Set(key K, value V)
 	Del(key K)
 	Keys() []K
 	Flush()
+}
+
+type TCacheTTL[K comparable, V interface{}] interface {
+	TCache[K, V]
+	SetWithTTL(key K, value V, ttl time.Time)
+}
+
+type TCacheReplace[K comparable, V interface{}] interface {
+	TCache[K, V]
+	Replace(data map[K]V)
 }

@@ -9,28 +9,28 @@ import (
 )
 
 type (
-	withTTL[K comparable, T interface{}] struct {
+	cacheWithTTL[K comparable, V any] struct {
 		ttl  time.Duration
-		list map[K]*ttlItem[T]
+		list map[K]*itemCacheTTL[V]
 		mux  sync.RWMutex
 	}
 
-	ttlItem[T interface{}] struct {
-		link T
+	itemCacheTTL[V interface{}] struct {
+		link V
 		ts   int64
 	}
 )
 
-func NewWithTTL[K comparable, T interface{}](ctx context.Context, ttl time.Duration) TCache[K, T] {
-	cache := &withTTL[K, T]{
+func NewWithTTL[K comparable, V any](ctx context.Context, ttl time.Duration) TCacheTTL[K, V] {
+	cache := &cacheWithTTL[K, V]{
 		ttl:  ttl,
-		list: make(map[K]*ttlItem[T], 1000),
+		list: make(map[K]*itemCacheTTL[V], 1000),
 	}
 	go cache.cleaner(ctx)
 	return cache
 }
 
-func (v *withTTL[K, T]) cleaner(ctx context.Context) {
+func (v *cacheWithTTL[K, V]) cleaner(ctx context.Context) {
 	routine.Interval(ctx, v.ttl, func(ctx context.Context) {
 		curr := time.Now().Unix()
 
@@ -42,7 +42,7 @@ func (v *withTTL[K, T]) cleaner(ctx context.Context) {
 	})
 }
 
-func (v *withTTL[K, T]) Has(key K) bool {
+func (v *cacheWithTTL[K, V]) Has(key K) bool {
 	v.mux.RLock()
 	defer v.mux.RUnlock()
 
@@ -51,47 +51,47 @@ func (v *withTTL[K, T]) Has(key K) bool {
 	return ok
 }
 
-func (v *withTTL[K, T]) Get(key K) (T, bool) {
+func (v *cacheWithTTL[K, V]) Get(key K) (V, bool) {
 	v.mux.RLock()
 	defer v.mux.RUnlock()
 
 	item, ok := v.list[key]
 	if !ok {
-		var zeroValue T
+		var zeroValue V
 		return zeroValue, false
 	}
 
 	return item.link, true
 }
 
-func (v *withTTL[K, T]) Set(key K, value T) {
+func (v *cacheWithTTL[K, V]) Set(key K, value V) {
 	v.mux.Lock()
 	defer v.mux.Unlock()
 
-	v.list[key] = &ttlItem[T]{
+	v.list[key] = &itemCacheTTL[V]{
 		link: value,
 		ts:   time.Now().Add(v.ttl).Unix(),
 	}
 }
 
-func (v *withTTL[K, T]) SetWithTTL(key K, value T, ttl time.Time) {
+func (v *cacheWithTTL[K, V]) SetWithTTL(key K, value V, ttl time.Time) {
 	v.mux.Lock()
 	defer v.mux.Unlock()
 
-	v.list[key] = &ttlItem[T]{
+	v.list[key] = &itemCacheTTL[V]{
 		link: value,
 		ts:   ttl.Unix(),
 	}
 }
 
-func (v *withTTL[K, T]) Del(key K) {
+func (v *cacheWithTTL[K, V]) Del(key K) {
 	v.mux.Lock()
 	defer v.mux.Unlock()
 
 	delete(v.list, key)
 }
 
-func (v *withTTL[K, T]) Keys() []K {
+func (v *cacheWithTTL[K, V]) Keys() []K {
 	v.mux.RLock()
 	defer v.mux.RUnlock()
 
@@ -103,7 +103,7 @@ func (v *withTTL[K, T]) Keys() []K {
 	return result
 }
 
-func (v *withTTL[K, T]) Flush() {
+func (v *cacheWithTTL[K, V]) Flush() {
 	v.mux.Lock()
 	defer v.mux.Unlock()
 
