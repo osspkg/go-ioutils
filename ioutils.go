@@ -113,8 +113,12 @@ func WriteBytes(v io.Writer, b []byte, divide string) error {
 const copyBufferSize = 512
 
 func Copy(w io.Writer, r io.Reader) (int, error) {
+	return CopyPack(w, r, copyBufferSize)
+}
+
+func CopyPack(w io.Writer, r io.Reader, size int) (int, error) {
 	n := 0
-	buff := make([]byte, copyBufferSize)
+	buff := make([]byte, size)
 	for {
 		m, err1 := r.Read(buff)
 		if m < 0 {
@@ -128,7 +132,7 @@ func Copy(w io.Writer, r io.Reader) (int, error) {
 		if err2 != nil {
 			return 0, fmt.Errorf("writer err: %w", err2)
 		}
-		if m < copyBufferSize || errors.Is(err1, io.EOF) {
+		if m < size || errors.Is(err1, io.EOF) {
 			return n, nil
 		}
 	}
