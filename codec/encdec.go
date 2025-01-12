@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Mikhail Knyazhev <markus621@yandex.com>. All rights reserved.
+ *  Copyright (c) 2024-2025 Mikhail Knyazhev <markus621@yandex.com>. All rights reserved.
  *  Use of this source code is governed by a BSD 3-Clause license that can be found in the LICENSE file.
  */
 
@@ -31,7 +31,7 @@ type (
 	Codec struct {
 		Encode func(in interface{}) ([]byte, error)
 		Decode func(b []byte, out interface{}) error
-		Merge  func(dst map[string]interface{}, src map[string]interface{}) error
+		Merge  func(dst map[string]interface{}, src ...map[string]interface{})
 	}
 	encoders struct {
 		list map[string]Codec
@@ -54,7 +54,7 @@ func (v *encoders) Add(
 	ext string,
 	enc func(interface{}) ([]byte, error),
 	dec func([]byte, interface{}) error,
-	merge func(map[string]interface{}, map[string]interface{}) error,
+	merge func(map[string]interface{}, ...map[string]interface{}),
 ) *encoders {
 	v.mux.Lock(func() {
 		v.list[ext] = Codec{

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Mikhail Knyazhev <markus621@yandex.com>. All rights reserved.
+ *  Copyright (c) 2024-2025 Mikhail Knyazhev <markus621@yandex.com>. All rights reserved.
  *  Use of this source code is governed by a BSD 3-Clause license that can be found in the LICENSE file.
  */
 
@@ -17,6 +17,8 @@ func TestUnit_mapMerge(t *testing.T) {
 		"aa": map[string]interface{}{
 			"bb": "cc",
 		},
+		"yy": 123,
+		"ww": 123,
 	}
 	mapB := map[string]interface{}{
 		"zz": "xx",
@@ -26,10 +28,15 @@ func TestUnit_mapMerge(t *testing.T) {
 				"rr": "tt",
 			},
 		},
+		"ww": map[string]interface{}{
+			"gg": "hh",
+		},
 	}
 
-	casecheck.NoError(t, mapMerge(mapA, mapB))
+	mapMerge(mapA, mapB)
+
 	casecheck.Equal(t, map[string]interface{}{
+		"yy": 123,
 		"zz": "xx",
 		"qq": "ww",
 		"aa": map[string]interface{}{
@@ -38,6 +45,9 @@ func TestUnit_mapMerge(t *testing.T) {
 			"ee": map[string]interface{}{
 				"rr": "tt",
 			},
+		},
+		"ww": map[string]interface{}{
+			"gg": "hh",
 		},
 	}, mapA)
 }

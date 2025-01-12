@@ -368,7 +368,6 @@ linters:
     - errorlint
     - bodyclose
     - exportloopref
-    - gci
     - gosec
     - lll
   fast: false
