@@ -14,18 +14,18 @@ import (
 	"go.osspkg.com/casecheck"
 )
 
-type mockFailReader struct {
+type mockRW struct {
 	Err error
 	N   int
 }
 
-func (v *mockFailReader) Read(p []byte) (int, error) {
+func (v *mockRW) Read(p []byte) (int, error) {
 	if v.Err != nil {
 		return 0, v.Err
 	}
 	return v.N, nil
 }
-func (v *mockFailReader) Write(p []byte) (int, error) {
+func (v *mockRW) Write(p []byte) (int, error) {
 	if v.Err != nil {
 		return 0, v.Err
 	}
@@ -129,17 +129,17 @@ func TestUnit_Data1(t *testing.T) {
 
 	d.Seek(0, 0)
 
-	str, err = d.ReadSubString("卉*")
+	str, err = d.ReadNextString("卉*")
 	casecheck.NoError(t, err)
 	casecheck.Equal(t, "aФ卉*", str)
 
 	d.Seek(0, 0)
 
-	str, err = d.ReadSubString("*卉")
+	str, err = d.ReadNextString("*卉")
 	casecheck.NoError(t, err)
 	casecheck.Equal(t, "aФ卉**", str)
 
-	str, err = d.ReadSubString("*卉")
+	str, err = d.ReadNextString("*卉")
 	casecheck.Error(t, err)
 	casecheck.Equal(t, "", str)
 
@@ -187,11 +187,11 @@ func TestUnit_Data1(t *testing.T) {
 	casecheck.Equal(t, int64(3), i)
 	casecheck.Equal(t, "aФ卉**123", d.String())
 
-	i, err = d.ReadFrom(&mockFailReader{Err: fmt.Errorf("1")})
+	i, err = d.ReadFrom(&mockRW{Err: fmt.Errorf("1")})
 	casecheck.Error(t, err)
 	casecheck.Equal(t, int64(0), i)
 
-	i, err = d.ReadFrom(&mockFailReader{N: -1})
+	i, err = d.ReadFrom(&mockRW{N: -1})
 	casecheck.Error(t, err)
 	casecheck.Equal(t, int64(0), i)
 
@@ -209,7 +209,7 @@ func TestUnit_Data1(t *testing.T) {
 
 	d.Seek(0, 0)
 
-	i, err = d.WriteTo(&mockFailReader{Err: fmt.Errorf("1")})
+	i, err = d.WriteTo(&mockRW{Err: fmt.Errorf("1")})
 	casecheck.Error(t, err)
 	casecheck.Equal(t, int64(0), i)
 
@@ -354,4 +354,81 @@ func TestUnit_Data_Truncate(t *testing.T) {
 			casecheck.Equal(t, tt.l, d.Len())
 		})
 	}
+}
+
+type mockLimitWriter struct {
+	B   []byte
+	Lim int
+}
+
+func (v *mockLimitWriter) Write(p []byte) (int, error) {
+	n := min(len(p), v.Lim)
+	v.B = append(v.B, p[:n]...)
+	return n, nil
+}
+
+func TestUnit_WriteTo(t *testing.T) {
+	d := NewBuffer(10)
+	d.WriteString("1234567890")
+
+	lw := &mockLimitWriter{Lim: 3}
+	n, err := d.WriteTo(lw)
+	casecheck.NoError(t, err)
+	casecheck.Equal(t, int64(10), n)
+	casecheck.Equal(t, "1234567890", string(lw.B))
+}
+
+func TestUnit_NextField_Accurate_False(t *testing.T) {
+	d := NewBuffer(1)
+	d.WriteString("123  456 `789`")
+
+	b, s, err := d.NextField(" `", false)
+	casecheck.NoError(t, err)
+	casecheck.Equal(t, "123", string(b))
+	casecheck.Equal(t, " ", string(s))
+
+	b, s, err = d.NextField(" `", false)
+	casecheck.NoError(t, err)
+	casecheck.Equal(t, "", string(b))
+	casecheck.Equal(t, " ", string(s))
+
+	b, s, err = d.NextField(" `", false)
+	casecheck.NoError(t, err)
+	casecheck.Equal(t, "456", string(b))
+	casecheck.Equal(t, " ", string(s))
+
+	b, s, err = d.NextField(" `", false)
+	casecheck.NoError(t, err)
+	casecheck.Equal(t, "", string(b))
+	casecheck.Equal(t, "`", string(s))
+
+	b, s, err = d.NextField(" `", false)
+	casecheck.NoError(t, err)
+	casecheck.Equal(t, "789", string(b))
+	casecheck.Equal(t, "`", string(s))
+
+	b, s, err = d.NextField(" `", false)
+	casecheck.Error(t, err)
+	casecheck.Equal(t, "", string(b))
+	casecheck.Equal(t, []byte{}, s)
+}
+
+func TestUnit_NextField_Accurate_True(t *testing.T) {
+	d := NewBuffer(1)
+	d.WriteString("123  456 `789`")
+
+	b, s, err := d.NextField(" `", true)
+	casecheck.NoError(t, err)
+	casecheck.Equal(t, "123  456", string(b))
+	casecheck.Equal(t, " `", string(s))
+
+	b, s, err = d.NextField(" `", true)
+	casecheck.NoError(t, err)
+	casecheck.Equal(t, "789`", string(b))
+	casecheck.Equal(t, " `", string(s))
+
+	b, s, err = d.NextField(" `", false)
+	casecheck.Error(t, err)
+	casecheck.Equal(t, "", string(b))
+	casecheck.Equal(t, []byte{}, s)
 }

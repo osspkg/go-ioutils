@@ -12,19 +12,10 @@ import (
 	"go.osspkg.com/errors"
 )
 
-func ReadAll(r io.ReadCloser) ([]byte, error) {
-	b, err := io.ReadAll(r)
-	err = errors.Wrap(err, r.Close())
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
-}
-
-const copyBufferSize = 512
+const packSize = 512
 
 func Copy(w io.Writer, r io.Reader) (int, error) {
-	return CopyN(w, r, copyBufferSize)
+	return CopyN(w, r, packSize)
 }
 
 func CopyN(w io.Writer, r io.Reader, size int) (int, error) {

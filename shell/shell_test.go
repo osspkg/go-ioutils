@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"go.osspkg.com/casecheck"
+
 	"go.osspkg.com/ioutils/shell"
 )
 

@@ -21,7 +21,7 @@ func CurrentDir() string {
 	return dir
 }
 
-func ParentFolder(filename string) string {
+func DirName(filename string) string {
 	dir := filepath.Dir(filename)
 	tree := strings.Split(dir, string(os.PathSeparator))
 	return tree[len(tree)-1]
@@ -63,19 +63,30 @@ func SearchFilesByExt(dir, ext string) ([]string, error) {
 }
 
 func RewriteFile(filename string, call func([]byte) ([]byte, error)) error {
+	var mode fs.FileMode = 0755
+
 	if !FileExist(filename) {
-		if err := os.WriteFile(filename, []byte(""), 0755); err != nil {
+		if err := os.WriteFile(filename, []byte(""), mode); err != nil {
 			return err
 		}
+	} else {
+		fi, err := os.Lstat(filename)
+		if err != nil {
+			return err
+		}
+		mode = fi.Mode()
 	}
+
 	b, err := os.ReadFile(filename)
 	if err != nil {
 		return err
 	}
+
 	if b, err = call(b); err != nil {
 		return err
 	}
-	return os.WriteFile(filename, b, 0755)
+
+	return os.WriteFile(filename, b, mode)
 }
 
 func CopyFile(dst, src string, mode os.FileMode) error {

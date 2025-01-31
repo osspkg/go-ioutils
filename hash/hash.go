@@ -15,7 +15,7 @@ import (
 	"go.osspkg.com/errors"
 )
 
-func ValidateFile(filename string, h hash.Hash, valid string) error {
+func Verify(filename string, h hash.Hash, valid string) error {
 	r, err := os.Open(filename)
 	if err != nil {
 		return err
@@ -32,7 +32,7 @@ func ValidateFile(filename string, h hash.Hash, valid string) error {
 	return nil
 }
 
-func CreateFromFile(filename string, h hash.Hash) (string, error) {
+func Create(filename string, h hash.Hash) (string, error) {
 	r, err := os.Open(filename)
 	if err != nil {
 		return "", err
