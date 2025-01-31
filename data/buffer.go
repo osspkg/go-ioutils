@@ -13,7 +13,7 @@ import (
 	"unicode/utf8"
 )
 
-const buffSize = 512
+const packSize = 65535
 
 type Buffer struct {
 	buf []byte
@@ -21,6 +21,9 @@ type Buffer struct {
 }
 
 func NewBuffer(size int) *Buffer {
+	if size < 0 {
+		size = 0
+	}
 	return &Buffer{
 		buf: make([]byte, 0, size),
 		pos: 0,
@@ -101,17 +104,46 @@ func (v *Buffer) WriteRune(r rune) (n int, err error) {
 	return
 }
 
-func (v *Buffer) WriteTo(w io.Writer) (int64, error) {
+func (v *Buffer) WriteTo(w io.Writer) (n int64, err error) {
+	return v.WriteToN(w, packSize)
+}
+
+func (v *Buffer) WriteToN(w io.Writer, size int) (n int64, err error) {
 	if v.Len() <= 0 {
 		return 0, io.EOF
 	}
 
-	n, err := w.Write(v.buf[v.pos:])
-	if err != nil {
-		return 0, err
+	b := make([]byte, size)
+
+	for {
+		rn, re := v.Read(b)
+		if rn > 0 {
+			wn, we := w.Write(b[:rn])
+			if wn > rn || wn <= 0 {
+				v.Seek(int64(-rn), SeekCurr) //nolint: errcheck
+				err = fmt.Errorf("invalid write result")
+				break
+			}
+			if wn != rn {
+				v.Seek(int64(-rn+wn), SeekCurr) //nolint: errcheck
+			}
+			n += int64(wn)
+			if we != nil {
+				if !errors.Is(we, io.EOF) {
+					err = we
+				}
+				break
+			}
+		}
+		if re != nil {
+			if !errors.Is(re, io.EOF) {
+				err = re
+			}
+			break
+		}
 	}
-	v.pos += n
-	return int64(n), nil
+
+	return
 }
 
 func (v *Buffer) WriteAt(b []byte, off int64) (int, error) {
@@ -129,8 +161,12 @@ func (v *Buffer) WriteAt(b []byte, off int64) (int, error) {
 }
 
 func (v *Buffer) ReadFrom(r io.Reader) (int64, error) {
+	return v.ReadFromN(r, packSize)
+}
+
+func (v *Buffer) ReadFromN(r io.Reader, size int) (int64, error) {
 	n := 0
-	b := make([]byte, buffSize)
+	b := make([]byte, size)
 	for {
 		m, err := r.Read(b)
 		if m < 0 {
@@ -141,7 +177,7 @@ func (v *Buffer) ReadFrom(r io.Reader) (int64, error) {
 		}
 		n += m
 		v.buf = append(v.buf, b[:m]...)
-		if m < buffSize || errors.Is(err, io.EOF) {
+		if m < size || errors.Is(err, io.EOF) {
 			break
 		}
 	}
@@ -169,6 +205,22 @@ func (v *Buffer) ReadAt(p []byte, off int64) (int, error) {
 	}
 	n := copy(p[:], v.buf[int(off):])
 	return n, nil
+}
+
+func (v *Buffer) Discard(n int) int {
+	if n <= 0 {
+		return 0
+	}
+	np, _ := v.Seek(int64(n), SeekCurr) //nolint: errcheck
+	return int(np)
+}
+
+func (v *Buffer) Resume(n int) int {
+	if n <= 0 {
+		return 0
+	}
+	np, _ := v.Seek(-int64(n), SeekCurr) //nolint: errcheck
+	return int(np)
 }
 
 func (v *Buffer) Next(n int) []byte {
@@ -251,12 +303,11 @@ func (v *Buffer) ReadBytes(delim byte) ([]byte, error) {
 	return b, nil
 }
 
-func (v *Buffer) ReadSubBytes(delim string) ([]byte, error) {
-	m := v.Len()
-	if m == 0 {
+func (v *Buffer) ReadNextBytes(delim []byte) ([]byte, error) {
+	if v.Len() == 0 {
 		return nil, io.EOF
 	}
-	i := bytes.Index(v.buf[v.pos:], []byte(delim))
+	i := bytes.Index(v.buf[v.pos:], delim)
 	end := v.pos + i + len(delim)
 	if i < 0 {
 		end = v.Size()
@@ -264,6 +315,47 @@ func (v *Buffer) ReadSubBytes(delim string) ([]byte, error) {
 	b := v.buf[v.pos:end]
 	v.pos = end
 	return b, nil
+}
+
+func (v *Buffer) NextField(sep string, accurate bool) (field []byte, symbol []byte, err error) {
+	if v.Len() == 0 {
+		return nil, nil, io.EOF
+	}
+
+	var i int
+
+	if accurate {
+		i = bytes.Index(v.buf[v.pos:], []byte(sep))
+	} else {
+		i = bytes.IndexAny(v.buf[v.pos:], sep)
+	}
+
+	if i < 0 {
+		i = v.Size()
+	}
+
+	end := v.pos + i
+	if end > v.Size() {
+		end = v.Size()
+	}
+
+	field = v.buf[v.pos:end]
+	v.pos = end
+
+	if accurate {
+		symbol = []byte(sep)
+		v.pos += len(symbol)
+	} else {
+		rv, rn := utf8.DecodeRune(v.buf[v.pos:])
+		symbol = []byte(string(rv))
+		v.pos += rn
+	}
+
+	if v.pos > v.Size() {
+		v.pos = v.Size()
+	}
+
+	return
 }
 
 func (v *Buffer) ReadString(delim byte) (string, error) {
@@ -274,21 +366,27 @@ func (v *Buffer) ReadString(delim byte) (string, error) {
 	return string(b), nil
 }
 
-func (v *Buffer) ReadSubString(delim string) (string, error) {
-	b, err := v.ReadSubBytes(delim)
+func (v *Buffer) ReadNextString(delim string) (string, error) {
+	b, err := v.ReadNextBytes([]byte(delim))
 	if err != nil {
 		return "", err
 	}
 	return string(b), nil
 }
 
+const (
+	SeekStart int = 0
+	SeekCurr  int = 1
+	SeekEnd   int = 2
+)
+
 func (v *Buffer) Seek(offset int64, whence int) (int64, error) {
 	switch whence {
-	case 0:
+	case SeekStart:
 		v.pos = int(offset)
-	case 1:
+	case SeekCurr:
 		v.pos += int(offset)
-	case 2:
+	case SeekEnd:
 		v.pos = v.Size() + int(offset)
 	default:
 		return 0, fmt.Errorf("invalid whence")
