@@ -31,9 +31,6 @@ func NewBuffer(size int) *Buffer {
 }
 
 func (v *Buffer) Reset() {
-	for i := 0; i < v.Size(); i++ {
-		v.buf[i] = 0
-	}
 	v.buf = v.buf[:0]
 	v.pos = 0
 }
