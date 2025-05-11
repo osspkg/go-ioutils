@@ -31,10 +31,12 @@ func NewBuffer(size int) *Buffer {
 }
 
 func (v *Buffer) Reset() {
-	for i := 0; i < v.Size(); i++ {
-		v.buf[i] = 0
+	l := len(v.buf)
+	if l > 5e6 {
+		v.buf = v.buf[:0:5e6]
+	} else {
+		v.buf = v.buf[:0]
 	}
-	v.buf = v.buf[:0]
 	v.pos = 0
 }
 
@@ -151,11 +153,11 @@ func (v *Buffer) WriteAt(b []byte, off int64) (int, error) {
 		off = 0
 	}
 
-	if len(b)+int(off) > v.Size() {
-		v.buf = append(v.buf[:off], b...)
-	} else {
-		copy(v.buf[off:], b[:])
+	if add := len(b) + int(off) - v.Size(); add > 0 {
+		v.buf = append(v.buf, make([]byte, add)...)
 	}
+
+	copy(v.buf[off:], b[:])
 
 	return len(b), nil
 }
