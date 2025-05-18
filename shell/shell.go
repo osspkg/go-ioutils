@@ -21,11 +21,13 @@ type (
 		env   []string
 		dir   string
 		shell []string
+		osenv bool
 		mux   sync.RWMutex
 	}
 
 	TShell interface {
 		SetEnv(key, value string)
+		UseOSEnv(use bool)
 		SetDir(dir string)
 		SetShell(shell string, keys ...string) error
 		CallPackageContext(ctx context.Context, out io.Writer, commands ...string) error
@@ -36,6 +38,7 @@ type (
 
 func New() TShell {
 	v := &_shell{
+		osenv: true,
 		env:   make([]string, 0, 10),
 		dir:   os.TempDir(),
 		shell: []string{"/bin/sh", "-xec"},
@@ -48,6 +51,13 @@ func (v *_shell) SetEnv(key, value string) {
 	defer v.mux.Unlock()
 
 	v.env = append(v.env, key+"="+value)
+}
+
+func (v *_shell) UseOSEnv(use bool) {
+	v.mux.Lock()
+	defer v.mux.Unlock()
+
+	v.osenv = use
 }
 
 func (v *_shell) SetDir(dir string) {
@@ -82,26 +92,36 @@ func (v *_shell) CallPackageContext(ctx context.Context, out io.Writer, commands
 	return nil
 }
 
-func (v *_shell) CallContext(ctx context.Context, out io.Writer, c string) error {
+func (v *_shell) CallContext(ctx context.Context, out io.Writer, command string) error {
 	v.mux.RLock()
 	defer v.mux.RUnlock()
 
-	cmd := exec.CommandContext(ctx, v.shell[0], append(v.shell[1:], c, " <&-")...)
-	cmd.Env = append(os.Environ(), v.env...)
+	cmd := exec.CommandContext(ctx, v.shell[0], append(v.shell[1:], command, " <&-")...)
 	cmd.Dir = v.dir
 	cmd.Stdout = out
 	cmd.Stderr = out
 
+	if v.osenv {
+		cmd.Env = append(os.Environ(), v.env...)
+	} else {
+		cmd.Env = v.env
+	}
+
 	return cmd.Run()
 }
 
-func (v *_shell) Call(ctx context.Context, c string) ([]byte, error) {
+func (v *_shell) Call(ctx context.Context, command string) ([]byte, error) {
 	v.mux.RLock()
 	defer v.mux.RUnlock()
 
-	cmd := exec.CommandContext(ctx, v.shell[0], append(v.shell[1:], c, " <&-")...)
-	cmd.Env = append(os.Environ(), v.env...)
+	cmd := exec.CommandContext(ctx, v.shell[0], append(v.shell[1:], command, " <&-")...)
 	cmd.Dir = v.dir
+
+	if v.osenv {
+		cmd.Env = append(os.Environ(), v.env...)
+	} else {
+		cmd.Env = v.env
+	}
 
 	return cmd.CombinedOutput()
 }
