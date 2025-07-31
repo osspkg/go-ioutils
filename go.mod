@@ -1,6 +1,6 @@
 module go.osspkg.com/ioutils
 
-go 1.23.8
+go 1.23.11
 
 require (
 	go.osspkg.com/casecheck v0.3.0

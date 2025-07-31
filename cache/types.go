@@ -5,23 +5,19 @@
 
 package cache
 
-import "time"
-
-type TCache[K comparable, V interface{}] interface {
+type Cache[K comparable, V any] interface {
 	Has(key K) bool
 	Get(key K) (V, bool)
+	Extract(key K) (V, bool)
 	Set(key K, value V)
+	Replace(data map[K]V)
 	Del(key K)
 	Keys() []K
 	Flush()
 }
 
-type TCacheTTL[K comparable, V interface{}] interface {
-	TCache[K, V]
-	SetWithTTL(key K, value V, ttl time.Time)
-}
+type Option[K comparable, V any] func(*_cache[K, V])
 
-type TCacheReplace[K comparable, V interface{}] interface {
-	TCache[K, V]
-	Replace(data map[K]V)
+type Timestamp interface {
+	Timestamp() int64
 }

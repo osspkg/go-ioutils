@@ -6,6 +6,7 @@
 package fs
 
 import (
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -60,6 +61,22 @@ func SearchFilesByExt(dir, ext string) ([]string, error) {
 		return nil
 	})
 	return files, err
+}
+
+func ListFiles(dir string, handler func(path string, fi fs.FileInfo)) error {
+	if handler == nil {
+		return fmt.Errorf("handler is nil")
+	}
+	return filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		handler(path, info)
+		return nil
+	})
 }
 
 func RewriteFile(filename string, call func([]byte) ([]byte, error)) error {
