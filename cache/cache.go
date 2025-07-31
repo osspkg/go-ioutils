@@ -10,19 +10,25 @@ import (
 )
 
 type (
-	cacheReplace[K comparable, V any] struct {
+	_cache[K comparable, V any] struct {
 		list map[K]V
 		mux  sync.RWMutex
 	}
 )
 
-func NewWithReplace[K comparable, V any]() TCacheReplace[K, V] {
-	return &cacheReplace[K, V]{
-		list: make(map[K]V, 1000),
+func New[K comparable, V any](opts ...Option[K, V]) Cache[K, V] {
+	obj := &_cache[K, V]{
+		list: make(map[K]V, 100),
 	}
+
+	for _, opt := range opts {
+		opt(obj)
+	}
+
+	return obj
 }
 
-func (v *cacheReplace[K, V]) Has(key K) bool {
+func (v *_cache[K, V]) Has(key K) bool {
 	v.mux.RLock()
 	defer v.mux.RUnlock()
 
@@ -31,7 +37,7 @@ func (v *cacheReplace[K, V]) Has(key K) bool {
 	return ok
 }
 
-func (v *cacheReplace[K, V]) Get(key K) (V, bool) {
+func (v *_cache[K, V]) Get(key K) (V, bool) {
 	v.mux.RLock()
 	defer v.mux.RUnlock()
 
@@ -44,28 +50,43 @@ func (v *cacheReplace[K, V]) Get(key K) (V, bool) {
 	return item, true
 }
 
-func (v *cacheReplace[K, V]) Set(key K, value V) {
+func (v *_cache[K, V]) Extract(key K) (V, bool) {
+	v.mux.Lock()
+	defer v.mux.Unlock()
+
+	item, ok := v.list[key]
+	if !ok {
+		var zeroValue V
+		return zeroValue, false
+	}
+
+	delete(v.list, key)
+
+	return item, true
+}
+
+func (v *_cache[K, V]) Set(key K, value V) {
 	v.mux.Lock()
 	defer v.mux.Unlock()
 
 	v.list[key] = value
 }
 
-func (v *cacheReplace[K, V]) Replace(data map[K]V) {
+func (v *_cache[K, V]) Replace(data map[K]V) {
 	v.mux.Lock()
 	defer v.mux.Unlock()
 
 	v.list = data
 }
 
-func (v *cacheReplace[K, V]) Del(key K) {
+func (v *_cache[K, V]) Del(key K) {
 	v.mux.Lock()
 	defer v.mux.Unlock()
 
 	delete(v.list, key)
 }
 
-func (v *cacheReplace[K, V]) Keys() []K {
+func (v *_cache[K, V]) Keys() []K {
 	v.mux.RLock()
 	defer v.mux.RUnlock()
 
@@ -77,7 +98,7 @@ func (v *cacheReplace[K, V]) Keys() []K {
 	return result
 }
 
-func (v *cacheReplace[K, V]) Flush() {
+func (v *_cache[K, V]) Flush() {
 	v.mux.Lock()
 	defer v.mux.Unlock()
 
