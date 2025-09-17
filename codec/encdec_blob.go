@@ -6,6 +6,7 @@
 package codec
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -19,18 +20,21 @@ func (v *BlobEncoder) Decode(configs ...interface{}) error {
 	v.mux.RLock()
 	defer v.mux.RUnlock()
 
-	call, err := _default.Get(v.Ext)
-	if err != nil {
-		return err
-	}
-	if v.Blob == nil {
+	if len(v.Blob) == 0 {
 		return nil
 	}
+
+	c, err := _default.Get(v.Ext)
+	if err != nil {
+		return fmt.Errorf("get codec: %w", err)
+	}
+
 	for _, conf := range configs {
-		if err = call.Decode(v.Blob, conf); err != nil {
-			return err
+		if err = c.Decode(v.Blob, conf); err != nil {
+			return fmt.Errorf("decode bytes: %w", err)
 		}
 	}
+
 	return nil
 }
 
@@ -38,23 +42,24 @@ func (v *BlobEncoder) Encode(configs ...interface{}) error {
 	v.mux.Lock()
 	defer v.mux.Unlock()
 
-	codec, err0 := _default.Get(v.Ext)
-	if err0 != nil {
-		return err0
+	c, err := _default.Get(v.Ext)
+	if err != nil {
+		return fmt.Errorf("get codec: %w", err)
 	}
 
-	out := make(map[string]interface{}, 10)
+	out := make([]byte, 0, 1024)
 	for _, conf := range configs {
-		bb, err := codec.Encode(conf)
-		if err != nil {
-			return err
+		bb, err0 := c.Encode(conf)
+		if err0 != nil {
+			return fmt.Errorf("encode bytes: %w", err0)
 		}
-		tmp := make(map[string]interface{}, 10)
-		if err = codec.Decode(bb, &tmp); err != nil {
-			return err
+
+		if err0 = c.Join(c, &out, bb); err0 != nil {
+			return fmt.Errorf("join bytes: %w", err0)
 		}
-		codec.Merge(out, tmp)
 	}
-	v.Blob, err0 = codec.Encode(out)
-	return err0
+
+	v.Blob = out
+
+	return nil
 }

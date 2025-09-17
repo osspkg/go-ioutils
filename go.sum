@@ -1,3 +1,5 @@
+github.com/BurntSushi/toml v1.5.0 h1:W5quZX/G/csjUnuI8SUYlsHs9M38FC7znL0lIO+DvMg=
+github.com/BurntSushi/toml v1.5.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
 go.osspkg.com/casecheck v0.3.0 h1:x15blEszElbrHrEH5H02JIIhGIg/lGZzIt1kQlD3pwM=
 go.osspkg.com/casecheck v0.3.0/go.mod h1:TRFXDMFJEOtnlp3ET2Hix3osbxwPWhvaiT/HfD3+gBA=
 go.osspkg.com/errors v0.3.1 h1:F9m/EEd/Ot2jba/TV7tvVRIpWXzIpNLc7vRJKcBD86A=

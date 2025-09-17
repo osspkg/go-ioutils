@@ -5,8 +5,16 @@
 
 package pool
 
-func NewSlicePool[T any](l, c int) *Pool[*SlicePool[T]] {
-	return New(func() *SlicePool[T] {
-		return &SlicePool[T]{B: make([]T, l, c)}
+type Slice[T any] struct {
+	B []T
+}
+
+func (v *Slice[T]) Reset() {
+	v.B = v.B[:0]
+}
+
+func NewSlicePool[T any](l, c int) *Pool[*Slice[T]] {
+	return New(func() *Slice[T] {
+		return &Slice[T]{B: make([]T, l, c)}
 	})
 }

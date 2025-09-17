@@ -96,7 +96,7 @@ func (v *_shell) CallContext(ctx context.Context, out io.Writer, command string)
 	v.mux.RLock()
 	defer v.mux.RUnlock()
 
-	cmd := exec.CommandContext(ctx, v.shell[0], append(v.shell[1:], command, " <&-")...)
+	cmd := exec.CommandContext(ctx, v.shell[0], append(v.shell[1:], command, " <&-")...) //nolint:gosec
 	cmd.Dir = v.dir
 	cmd.Stdout = out
 	cmd.Stderr = out
@@ -114,7 +114,7 @@ func (v *_shell) Call(ctx context.Context, command string) ([]byte, error) {
 	v.mux.RLock()
 	defer v.mux.RUnlock()
 
-	cmd := exec.CommandContext(ctx, v.shell[0], append(v.shell[1:], command, " <&-")...)
+	cmd := exec.CommandContext(ctx, v.shell[0], append(v.shell[1:], command, " <&-")...) //nolint:gosec
 	cmd.Dir = v.dir
 
 	if v.osenv {
