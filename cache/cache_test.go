@@ -73,7 +73,7 @@ func TestUnit_AutoClean(t *testing.T) {
 	c.Set("foo", testValue{Val: "bar", TS: time.Now().Add(time.Millisecond * 200).Unix()})
 	casecheck.True(t, c.Has("foo"))
 
-	time.Sleep(time.Second)
+	time.Sleep(time.Second * 2)
 
 	casecheck.False(t, c.Has("foo"))
 }

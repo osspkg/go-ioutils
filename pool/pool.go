@@ -34,11 +34,3 @@ func (v *Pool[T]) Put(t T) {
 	t.Reset()
 	v.pool.Put(t)
 }
-
-type SlicePool[T any] struct {
-	B []T
-}
-
-func (v *SlicePool[T]) Reset() {
-	v.B = v.B[:0]
-}
