@@ -30,10 +30,12 @@ func NewBuffer(size int) *Buffer {
 	}
 }
 
+const maxSize = 100000
+
 func (v *Buffer) Reset() {
 	l := len(v.buf)
-	if l > 5e6 {
-		v.buf = v.buf[:0:5e6]
+	if l > maxSize {
+		v.buf = v.buf[:0:maxSize]
 	} else {
 		v.buf = v.buf[:0]
 	}
