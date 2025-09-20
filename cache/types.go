@@ -13,6 +13,7 @@ type Cache[K comparable, V any] interface {
 	Replace(data map[K]V)
 	Del(key K)
 	Keys() []K
+	Size() int
 	Flush()
 }
 
