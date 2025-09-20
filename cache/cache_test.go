@@ -62,12 +62,12 @@ type testValue struct {
 
 func (v testValue) Timestamp() int64 { return v.TS }
 
-func TestUnit_AutoClean(t *testing.T) {
+func TestUnit_OptTimeClean(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	c := cache.New[string, testValue](
-		cache.AutoClean[string, testValue](ctx, time.Millisecond*100),
+		cache.OptTimeClean[string, testValue](ctx, time.Millisecond*100),
 	)
 
 	c.Set("foo", testValue{Val: "bar", TS: time.Now().Add(time.Millisecond * 200).Unix()})
@@ -78,12 +78,30 @@ func TestUnit_AutoClean(t *testing.T) {
 	casecheck.False(t, c.Has("foo"))
 }
 
+func TestUnit_OptCountRandomClean(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	c := cache.New[int, int](
+		cache.OptCountRandomClean[int, int](ctx, 100, time.Second),
+	)
+
+	for i := 0; i < 200; i++ {
+		c.Set(i, i)
+	}
+	casecheck.Equal(t, 200, c.Size())
+
+	time.Sleep(time.Second * 2)
+
+	casecheck.Equal(t, 100, c.Size())
+}
+
 func Benchmark_New(b *testing.B) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	c := cache.New[string, testValue](
-		cache.AutoClean[string, testValue](ctx, time.Millisecond*100),
+		cache.OptTimeClean[string, testValue](ctx, time.Millisecond*100),
 	)
 
 	b.ReportAllocs()

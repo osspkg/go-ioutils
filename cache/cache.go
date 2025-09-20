@@ -22,10 +22,17 @@ func New[K comparable, V any](opts ...Option[K, V]) Cache[K, V] {
 	}
 
 	for _, opt := range opts {
-		opt(obj)
+		go opt(obj)
 	}
 
 	return obj
+}
+
+func (v *_cache[K, V]) Size() int {
+	v.mux.RLock()
+	defer v.mux.RUnlock()
+
+	return len(v.list)
 }
 
 func (v *_cache[K, V]) Has(key K) bool {
