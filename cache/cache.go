@@ -6,7 +6,10 @@
 package cache
 
 import (
+	"iter"
 	"sync"
+
+	"go.osspkg.com/random"
 )
 
 type (
@@ -57,6 +60,20 @@ func (v *_cache[K, V]) Get(key K) (V, bool) {
 	return item, true
 }
 
+func (v *_cache[K, V]) One() (key K, val V, ok bool) {
+	keys := v._keys(30)
+	if len(keys) == 0 {
+		return
+	}
+
+	random.Shuffle(keys)
+
+	key = keys[0]
+	val, ok = v.Get(key)
+
+	return
+}
+
 func (v *_cache[K, V]) Extract(key K) (V, bool) {
 	v.mux.Lock()
 	defer v.mux.Unlock()
@@ -94,12 +111,21 @@ func (v *_cache[K, V]) Del(key K) {
 }
 
 func (v *_cache[K, V]) Keys() []K {
+	return v._keys(v.Size())
+}
+
+func (v *_cache[K, V]) _keys(limit int) []K {
 	v.mux.RLock()
 	defer v.mux.RUnlock()
 
-	result := make([]K, 0, len(v.list))
+	i := 0
+	result := make([]K, 0, limit)
 	for k := range v.list {
 		result = append(result, k)
+		i++
+		if i >= limit {
+			break
+		}
 	}
 
 	return result
@@ -111,5 +137,23 @@ func (v *_cache[K, V]) Flush() {
 
 	for k := range v.list {
 		delete(v.list, k)
+	}
+}
+
+func (v *_cache[K, V]) Yield(limit int) iter.Seq2[K, V] {
+	if limit < 1 {
+		limit = v.Size()
+	}
+
+	keys := v._keys(limit)
+
+	return func(yield func(K, V) bool) {
+		for _, key := range keys {
+			if val, ok := v.Get(key); ok {
+				if !yield(key, val) {
+					return
+				}
+			}
+		}
 	}
 }

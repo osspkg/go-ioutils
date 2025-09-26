@@ -5,13 +5,21 @@
 
 package cache
 
+import "iter"
+
 type Cache[K comparable, V any] interface {
-	Has(key K) bool
-	Get(key K) (V, bool)
-	Extract(key K) (V, bool)
-	Set(key K, value V)
-	Replace(data map[K]V)
-	Del(key K)
+	Has(K) bool
+	Get(K) (V, bool)
+	//Yield if limit <=0 then got all elements for range
+	Yield(limit int) iter.Seq2[K, V]
+	//Extract getting element and delete form cache
+	Extract(K) (V, bool)
+	//One getting one random key-value element
+	One() (K, V, bool)
+	Set(K, V)
+	//Replace replace all elements
+	Replace(map[K]V)
+	Del(K)
 	Keys() []K
 	Size() int
 	Flush()

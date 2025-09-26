@@ -7,6 +7,7 @@ package cache_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -78,6 +79,31 @@ func TestUnit_OptTimeClean(t *testing.T) {
 	casecheck.False(t, c.Has("foo"))
 }
 
+func TestUnit_Yield(t *testing.T) {
+	c := cache.New[string, int64]()
+
+	c.Set("foo1", 1)
+	c.Set("foo2", 2)
+	casecheck.True(t, c.Has("foo1"))
+	casecheck.True(t, c.Has("foo2"))
+
+	for k, v := range c.Yield(0) {
+		fmt.Println(k, v)
+	}
+
+	list := map[string]int{}
+	for i := 0; i < 10; i++ {
+		k, _, ok := c.One()
+		casecheck.True(t, ok)
+		list[k] += 1
+	}
+	casecheck.Equal(t, 2, len(list))
+
+	for k, v := range list {
+		fmt.Println(k, v)
+	}
+}
+
 func TestUnit_OptCountRandomClean(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -119,6 +145,23 @@ func Benchmark_New(b *testing.B) {
 			c.Del("foo")
 			c.Set("foo", testValue{Val: "bar", TS: time.Now().Add(time.Millisecond * 200).Unix()})
 			c.Flush()
+		}
+	})
+}
+
+func Benchmark_One(b *testing.B) {
+	c := cache.New[int, int]()
+
+	for i := 0; i < 200; i++ {
+		c.Set(i, i)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			c.One()
 		}
 	})
 }
