@@ -21,25 +21,14 @@ func OptTimeClean[K comparable, V Timestamp](ctx context.Context, interval time.
 			Calls: []routine.TickFunc{
 				func(ctx context.Context, t time.Time) {
 					curr := t.Unix()
-					keys := make([]K, 0, 10)
-
-					v.mux.RLock()
-					for key, value := range v.list {
-						if value.Timestamp() < curr {
-							keys = append(keys, key)
-						}
-					}
-					v.mux.RUnlock()
-
-					if len(keys) == 0 {
-						return
-					}
 
 					v.mux.Lock()
 					defer v.mux.Unlock()
 
-					for _, key := range keys {
-						delete(v.list, key)
+					for key, value := range v.list {
+						if value.Timestamp() < curr {
+							delete(v.list, key)
+						}
 					}
 				},
 			},
@@ -62,24 +51,13 @@ func OptCountRandomClean[K comparable, V any](ctx context.Context, maxCount int,
 			Calls: []routine.TickFunc{
 				func(ctx context.Context, _ time.Time) {
 
-					v.mux.RLock()
-					removeCount := len(v.list) - maxCount
-					v.mux.RUnlock()
-
+					removeCount := v.Size() - maxCount
 					if removeCount <= 0 {
 						return
 					}
 
-					v.mux.Lock()
-					defer v.mux.Unlock()
-
-					for key := range v.list {
-						if removeCount <= 0 {
-							return
-						}
-
-						delete(v.list, key)
-						removeCount--
+					for key := range v.Yield(removeCount) {
+						v.Del(key)
 					}
 				},
 			},
