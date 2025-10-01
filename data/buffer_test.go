@@ -204,7 +204,7 @@ func TestUnit_Data1(t *testing.T) {
 	casecheck.Equal(t, "123aФ卉**123", bb.String())
 
 	i, err = d.WriteTo(bb)
-	casecheck.Error(t, err)
+	casecheck.NoError(t, err)
 	casecheck.Equal(t, int64(0), i)
 
 	d.Seek(0, 0)

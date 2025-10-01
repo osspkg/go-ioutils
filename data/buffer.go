@@ -24,6 +24,7 @@ func NewBuffer(size int) *Buffer {
 	if size < 0 {
 		size = 0
 	}
+
 	return &Buffer{
 		buf: make([]byte, 0, size),
 		pos: 0,
@@ -33,12 +34,12 @@ func NewBuffer(size int) *Buffer {
 const maxSize = 100000
 
 func (v *Buffer) Reset() {
-	l := len(v.buf)
-	if l > maxSize {
+	if len(v.buf) > maxSize {
 		v.buf = v.buf[:0:maxSize]
 	} else {
 		v.buf = v.buf[:0]
 	}
+
 	v.pos = 0
 }
 
@@ -62,6 +63,7 @@ func (v *Buffer) Truncate(c int) {
 	if c <= 0 {
 		return
 	}
+
 	n := v.Size() - c
 	if n <= 0 {
 		v.Reset()
@@ -89,6 +91,7 @@ func (v *Buffer) Truncate(c int) {
 
 func (v *Buffer) Write(p []byte) (int, error) {
 	v.buf = append(v.buf, p...)
+
 	return len(p), nil
 }
 
@@ -98,6 +101,7 @@ func (v *Buffer) WriteString(s string) (int, error) {
 
 func (v *Buffer) WriteByte(b byte) error {
 	v.buf = append(v.buf, b)
+
 	return nil
 }
 
@@ -105,6 +109,7 @@ func (v *Buffer) WriteRune(r rune) (n int, err error) {
 	n = v.Size()
 	v.buf = utf8.AppendRune(v.buf, r)
 	n = v.Size() - n
+
 	return
 }
 
@@ -114,7 +119,7 @@ func (v *Buffer) WriteTo(w io.Writer) (n int64, err error) {
 
 func (v *Buffer) WriteToN(w io.Writer, size int) (n int64, err error) {
 	if v.Len() <= 0 {
-		return 0, io.EOF
+		return 0, nil
 	}
 
 	b := make([]byte, size)
@@ -128,10 +133,13 @@ func (v *Buffer) WriteToN(w io.Writer, size int) (n int64, err error) {
 				err = fmt.Errorf("invalid write result")
 				break
 			}
+
 			if wn != rn {
 				v.Seek(int64(-rn+wn), SeekCurr) //nolint: errcheck
 			}
+
 			n += int64(wn)
+
 			if we != nil {
 				if !errors.Is(we, io.EOF) {
 					err = we
@@ -139,6 +147,7 @@ func (v *Buffer) WriteToN(w io.Writer, size int) (n int64, err error) {
 				break
 			}
 		}
+
 		if re != nil {
 			if !errors.Is(re, io.EOF) {
 				err = re
@@ -171,30 +180,37 @@ func (v *Buffer) ReadFrom(r io.Reader) (int64, error) {
 func (v *Buffer) ReadFromN(r io.Reader, size int) (int64, error) {
 	n := 0
 	b := make([]byte, size)
+
 	for {
 		m, err := r.Read(b)
 		if m < 0 {
 			return 0, fmt.Errorf("negative read bytes")
 		}
+
 		if err != nil && !errors.Is(err, io.EOF) {
 			return 0, err
 		}
+
 		n += m
+
 		v.buf = append(v.buf, b[:m]...)
 		if m < size || errors.Is(err, io.EOF) {
 			break
 		}
 	}
+
 	return int64(n), nil
 }
 
 func (v *Buffer) Read(p []byte) (int, error) {
 	if len(p) == 0 {
-		return 0, fmt.Errorf("got zero buffer arg")
+		return 0, fmt.Errorf("got zero buffer")
 	}
+
 	if v.Len() == 0 {
 		return 0, io.EOF
 	}
+
 	n := copy(p[:], v.buf[v.pos:])
 	v.pos += n
 	return n, nil
@@ -202,12 +218,15 @@ func (v *Buffer) Read(p []byte) (int, error) {
 
 func (v *Buffer) ReadAt(p []byte, off int64) (int, error) {
 	if len(p) == 0 {
-		return 0, fmt.Errorf("got zero buffer arg")
+		return 0, fmt.Errorf("got zero buffer")
 	}
+
 	if off < 0 || int(off) >= v.Size() {
 		return 0, io.EOF
 	}
+
 	n := copy(p[:], v.buf[int(off):])
+
 	return n, nil
 }
 
@@ -215,7 +234,9 @@ func (v *Buffer) Discard(n int) int {
 	if n <= 0 {
 		return 0
 	}
+
 	np, _ := v.Seek(int64(n), SeekCurr) //nolint: errcheck
+
 	return int(np)
 }
 
@@ -223,7 +244,9 @@ func (v *Buffer) Resume(n int) int {
 	if n <= 0 {
 		return 0
 	}
+
 	np, _ := v.Seek(-int64(n), SeekCurr) //nolint: errcheck
+
 	return int(np)
 }
 
@@ -231,25 +254,30 @@ func (v *Buffer) Next(n int) []byte {
 	if n <= 0 {
 		return nil
 	}
+
 	m := v.Len()
 	if m == 0 {
 		return nil
 	}
+
 	if n > m {
 		n = m
 	}
+
 	b := make([]byte, n)
 	v.pos += copy(b[:], v.buf[v.pos:])
+
 	return b
 }
 
 func (v *Buffer) ReadByte() (byte, error) {
-	m := v.Len()
-	if m == 0 {
+	if v.Len() == 0 {
 		return 0, io.EOF
 	}
+
 	b := v.buf[v.pos]
 	v.pos++
+
 	return b, nil
 }
 
@@ -257,18 +285,20 @@ func (v *Buffer) UnreadByte() error {
 	if v.pos <= 0 {
 		return fmt.Errorf("at beginning")
 	}
+
 	v.pos--
+
 	return nil
 }
 
 func (v *Buffer) ReadRune() (rune, int, error) {
-	m := v.Len()
-	if m == 0 {
+	if v.Len() == 0 {
 		return 0, 0, io.EOF
 	}
 
 	r, n := utf8.DecodeRune(v.buf[v.pos:])
 	v.pos += n
+
 	return r, n, nil
 }
 
@@ -293,17 +323,19 @@ func (v *Buffer) UnreadRune() error {
 }
 
 func (v *Buffer) ReadBytes(delim byte) ([]byte, error) {
-	m := v.Len()
-	if m == 0 {
+	if v.Len() == 0 {
 		return nil, io.EOF
 	}
+
 	i := bytes.IndexByte(v.buf[v.pos:], delim)
 	end := v.pos + i + 1
 	if i < 0 {
 		end = v.Size()
 	}
+
 	b := v.buf[v.pos:end]
 	v.pos = end
+
 	return b, nil
 }
 
@@ -311,13 +343,17 @@ func (v *Buffer) ReadNextBytes(delim []byte) ([]byte, error) {
 	if v.Len() == 0 {
 		return nil, io.EOF
 	}
+
 	i := bytes.Index(v.buf[v.pos:], delim)
 	end := v.pos + i + len(delim)
+
 	if i < 0 {
 		end = v.Size()
 	}
+
 	b := v.buf[v.pos:end]
 	v.pos = end
+
 	return b, nil
 }
 
@@ -367,6 +403,7 @@ func (v *Buffer) ReadString(delim byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return string(b), nil
 }
 
@@ -375,6 +412,7 @@ func (v *Buffer) ReadNextString(delim string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return string(b), nil
 }
 
@@ -395,10 +433,12 @@ func (v *Buffer) Seek(offset int64, whence int) (int64, error) {
 	default:
 		return 0, fmt.Errorf("invalid whence")
 	}
+
 	if v.pos < 0 {
 		v.pos = 0
 	} else if v.pos > v.Size() {
 		v.pos = v.Size()
 	}
+
 	return int64(v.pos), nil
 }
