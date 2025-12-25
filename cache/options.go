@@ -9,17 +9,16 @@ import (
 	"context"
 	"time"
 
-	"go.osspkg.com/routine"
+	"go.osspkg.com/routine/tick"
 )
 
 func OptTimeClean[K comparable, V Timestamp](ctx context.Context, interval time.Duration) Option[K, V] {
 	return func(v *_cache[K, V]) {
 
-		tik := routine.Ticker{
-			Interval: interval,
-			OnStart:  false,
-			Calls: []routine.TickFunc{
-				func(ctx context.Context, t time.Time) {
+		tik := tick.Ticker{
+			Calls: []tick.Config{{
+				Interval: interval,
+				Func: func(ctx context.Context, t time.Time) error {
 					curr := t.Unix()
 
 					v.mux.Lock()
@@ -30,8 +29,10 @@ func OptTimeClean[K comparable, V Timestamp](ctx context.Context, interval time.
 							delete(v.list, key)
 						}
 					}
+
+					return nil
 				},
-			},
+			}},
 		}
 
 		tik.Run(ctx)
@@ -45,22 +46,22 @@ func OptCountRandomClean[K comparable, V any](ctx context.Context, maxCount int,
 			panic("OptCountRandomClean: maxCount < 0")
 		}
 
-		tik := routine.Ticker{
-			Interval: interval,
-			OnStart:  false,
-			Calls: []routine.TickFunc{
-				func(ctx context.Context, _ time.Time) {
-
+		tik := tick.Ticker{
+			Calls: []tick.Config{{
+				Interval: interval,
+				Func: func(ctx context.Context, t time.Time) error {
 					removeCount := v.Size() - maxCount
 					if removeCount <= 0 {
-						return
+						return nil
 					}
 
 					for key := range v.Yield(removeCount) {
 						v.Del(key)
 					}
+
+					return nil
 				},
-			},
+			}},
 		}
 
 		tik.Run(ctx)
