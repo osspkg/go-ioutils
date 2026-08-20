@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024-2025 Mikhail Knyazhev <markus621@yandex.com>. All rights reserved.
+ *  Copyright (c) 2024-2026 Mikhail Knyazhev <markus621@yandex.com>. All rights reserved.
  *  Use of this source code is governed by a BSD 3-Clause license that can be found in the LICENSE file.
  */
 
@@ -16,7 +16,7 @@ type BlobEncoder struct {
 	mux  sync.RWMutex
 }
 
-func (v *BlobEncoder) Decode(configs ...interface{}) error {
+func (v *BlobEncoder) Decode(configs ...any) error {
 	v.mux.RLock()
 	defer v.mux.RUnlock()
 
@@ -29,16 +29,14 @@ func (v *BlobEncoder) Decode(configs ...interface{}) error {
 		return fmt.Errorf("get codec: %w", err)
 	}
 
-	for _, conf := range configs {
-		if err = c.Decode(v.Blob, conf); err != nil {
-			return fmt.Errorf("decode bytes: %w", err)
-		}
+	if err = c.Decode(v.Blob, configs...); err != nil {
+		return fmt.Errorf("decode bytes: %w", err)
 	}
 
 	return nil
 }
 
-func (v *BlobEncoder) Encode(configs ...interface{}) error {
+func (v *BlobEncoder) Encode(configs ...any) error {
 	v.mux.Lock()
 	defer v.mux.Unlock()
 
@@ -47,16 +45,9 @@ func (v *BlobEncoder) Encode(configs ...interface{}) error {
 		return fmt.Errorf("get codec: %w", err)
 	}
 
-	out := make([]byte, 0, 1024)
-	for _, conf := range configs {
-		bb, err0 := c.Encode(conf)
-		if err0 != nil {
-			return fmt.Errorf("encode bytes: %w", err0)
-		}
-
-		if err0 = c.Join(c, &out, bb); err0 != nil {
-			return fmt.Errorf("join bytes: %w", err0)
-		}
+	out, err0 := c.Encode(configs...)
+	if err0 != nil {
+		return fmt.Errorf("encode bytes: %w", err0)
 	}
 
 	v.Blob = out

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024-2025 Mikhail Knyazhev <markus621@yandex.com>. All rights reserved.
+ *  Copyright (c) 2024-2026 Mikhail Knyazhev <markus621@yandex.com>. All rights reserved.
  *  Use of this source code is governed by a BSD 3-Clause license that can be found in the LICENSE file.
  */
 
@@ -12,7 +12,7 @@ import (
 
 type FileEncoder string
 
-func (v FileEncoder) Decode(configs ...interface{}) error {
+func (v FileEncoder) Decode(configs ...any) error {
 	data, err := os.ReadFile(string(v))
 	if err != nil {
 		return err
@@ -25,7 +25,7 @@ func (v FileEncoder) Decode(configs ...interface{}) error {
 	return blob.Decode(configs...)
 }
 
-func (v FileEncoder) Encode(configs ...interface{}) error {
+func (v FileEncoder) Encode(configs ...any) error {
 	ext := filepath.Ext(string(v))
 	blob := &BlobEncoder{
 		Blob: nil,
