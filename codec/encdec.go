@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024-2025 Mikhail Knyazhev <markus621@yandex.com>. All rights reserved.
+ *  Copyright (c) 2024-2026 Mikhail Knyazhev <markus621@yandex.com>. All rights reserved.
  *  Use of this source code is governed by a BSD 3-Clause license that can be found in the LICENSE file.
  */
 
@@ -12,32 +12,37 @@ import (
 	"github.com/BurntSushi/toml"
 	"go.osspkg.com/errors"
 	"go.osspkg.com/syncing"
+	"go.osspkg.com/unic"
 	"gopkg.in/yaml.v3"
 )
 
 const (
-	ExtYAML = ".yaml"
-	ExtJSON = ".json"
-	ExtToml = ".toml"
-	ExtXML  = ".xml"
+	ExtYAMLs = ".yml"
+	ExtYAML  = ".yaml"
+	ExtJSON  = ".json"
+	ExtToml  = ".toml"
+	ExtXML   = ".xml"
+	ExtUnic  = ".unic"
+	ExtConf  = ".conf"
 )
 
 var (
 	ErrUnsupportedFormat = errors.New("format is not a supported")
 
 	_default = newEncoders().
-			Add(".yml", yaml.Marshal, yaml.Unmarshal, BytesJoin).
-			Add(ExtYAML, yaml.Marshal, yaml.Unmarshal, BytesJoin).
-			Add(ExtJSON, json.Marshal, json.Unmarshal, MapJoin).
-			Add(ExtToml, toml.Marshal, toml.Unmarshal, BytesJoin).
-			Add(ExtXML, xml.Marshal, xml.Unmarshal, BytesJoin)
+			Add(ExtYAMLs, SimpleCodec(yaml.Marshal, yaml.Unmarshal, BytesJoin)).
+			Add(ExtYAML, SimpleCodec(yaml.Marshal, yaml.Unmarshal, BytesJoin)).
+			Add(ExtJSON, SimpleCodec(json.Marshal, json.Unmarshal, MapJoin)).
+			Add(ExtToml, SimpleCodec(toml.Marshal, toml.Unmarshal, BytesJoin)).
+			Add(ExtXML, SimpleCodec(xml.Marshal, xml.Unmarshal, BytesJoin)).
+			Add(ExtUnic, Codec{Encode: unic.Marshal, Decode: unic.Unmarshal}).
+			Add(ExtConf, Codec{Encode: unic.Marshal, Decode: unic.Unmarshal})
 )
 
 type (
 	Codec struct {
-		Encode func(in interface{}) ([]byte, error)
-		Decode func(b []byte, out interface{}) error
-		Join   func(c Codec, dst *[]byte, src ...[]byte) error
+		Encode func(args ...any) ([]byte, error)
+		Decode func(b []byte, args ...any) error
 	}
 	encoders struct {
 		list map[string]Codec
@@ -46,7 +51,7 @@ type (
 )
 
 func AddCodec(ext string, c Codec) {
-	_default.Add(ext, c.Encode, c.Decode, c.Join)
+	_default.Add(ext, c)
 }
 
 func newEncoders() *encoders {
@@ -56,18 +61,9 @@ func newEncoders() *encoders {
 	}
 }
 
-func (v *encoders) Add(
-	ext string,
-	enc func(interface{}) ([]byte, error),
-	dec func([]byte, interface{}) error,
-	join func(c Codec, dst *[]byte, src ...[]byte) error,
-) *encoders {
+func (v *encoders) Add(ext string, c Codec) *encoders {
 	v.mux.Lock(func() {
-		v.list[ext] = Codec{
-			Encode: enc,
-			Decode: dec,
-			Join:   join,
-		}
+		v.list[ext] = c
 	})
 	return v
 }

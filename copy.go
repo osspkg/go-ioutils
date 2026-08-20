@@ -1,12 +1,11 @@
 /*
- *  Copyright (c) 2024-2025 Mikhail Knyazhev <markus621@yandex.com>. All rights reserved.
+ *  Copyright (c) 2024-2026 Mikhail Knyazhev <markus621@yandex.com>. All rights reserved.
  *  Use of this source code is governed by a BSD 3-Clause license that can be found in the LICENSE file.
  */
 
 package ioutils
 
 import (
-	"fmt"
 	"io"
 
 	"go.osspkg.com/errors"
@@ -19,22 +18,63 @@ func Copy(w io.Writer, r io.Reader) (int, error) {
 }
 
 func CopyN(w io.Writer, r io.Reader, size int) (int, error) {
+	if size <= 0 {
+		return 0, errors.New("size must be greater than zero")
+	}
+
+	buf := make([]byte, size)
+
+	return CopyB(w, r, buf)
+}
+
+func CopyB(w io.Writer, r io.Reader, buff []byte) (int, error) {
+	size := len(buff)
+	if size <= 0 {
+		return 0, errors.New("size must be greater than zero")
+	}
+	if w == nil {
+		return 0, errors.New("writer must not be nil")
+	}
+	if r == nil {
+		return 0, errors.New("reader must not be nil")
+	}
+
 	n := 0
-	buff := make([]byte, size)
+
 	for {
-		m, err1 := r.Read(buff)
-		if m < 0 {
-			return 0, fmt.Errorf("reader err: negative read bytes")
+		rn, re := r.Read(buff)
+		if rn < 0 {
+			return n, errors.New("reader err: negative read bytes")
 		}
-		if err1 != nil && !errors.Is(err1, io.EOF) {
-			return 0, err1
+
+		if rn > 0 {
+			wn, we := w.Write(buff[:rn])
+			if we != nil {
+				return n, errors.Wrapf(we, "writer err")
+			}
+
+			n += wn
+
+			if re != nil {
+				if errors.Is(re, io.EOF) {
+					return n, nil
+				}
+				return n, re
+			}
+
+			if wn != rn {
+				return n, io.ErrShortWrite
+			}
 		}
-		n += m
-		_, err2 := w.Write(buff[:m])
-		if err2 != nil {
-			return 0, fmt.Errorf("writer err: %w", err2)
+
+		if re != nil {
+			if errors.Is(re, io.EOF) {
+				return n, nil
+			}
+			return n, re
 		}
-		if m < size || errors.Is(err1, io.EOF) {
+
+		if rn < size {
 			return n, nil
 		}
 	}
