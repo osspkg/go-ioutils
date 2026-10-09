@@ -13,7 +13,7 @@ import (
 )
 
 func OptTimeClean[K comparable, V Timestamp](ctx context.Context, interval time.Duration) Option[K, V] {
-	return func(v *_cache[K, V]) {
+	return func(v *store[K, V]) {
 
 		tik := tick.Ticker{
 			Calls: []tick.Config{{
@@ -40,7 +40,7 @@ func OptTimeClean[K comparable, V Timestamp](ctx context.Context, interval time.
 }
 
 func OptCountRandomClean[K comparable, V any](ctx context.Context, maxCount int, interval time.Duration) Option[K, V] {
-	return func(v *_cache[K, V]) {
+	return func(v *store[K, V]) {
 
 		if maxCount < 0 {
 			panic("OptCountRandomClean: maxCount < 0")

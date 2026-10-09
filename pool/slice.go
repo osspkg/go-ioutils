@@ -10,6 +10,7 @@ type Slice[T any] struct {
 }
 
 func (v *Slice[T]) Reset() {
+	clear(v.B)
 	v.B = v.B[:0]
 }
 

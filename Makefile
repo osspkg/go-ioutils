@@ -1,6 +1,5 @@
 SHELL=/bin/bash
 
-
 .PHONY: install
 install:
 	go install go.osspkg.com/goppy/v2/cmd/goppy@latest
@@ -23,8 +22,8 @@ tests:
 	goppy test
 
 .PHONY: pre-commit
-pre-commit: install license lint tests build
+pre-commit: license lint tests build
 
 .PHONY: ci
-ci: pre-commit
+ci: install pre-commit
 

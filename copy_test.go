@@ -11,7 +11,6 @@ import (
 	"io"
 	"strings"
 	"testing"
-	"time"
 )
 
 // --- Mocks ---
@@ -156,26 +155,48 @@ func TestCopyN(t *testing.T) {
 	}
 }
 
-// Отдельный тест для зависания (infinite loop) при size == 0
-func TestCopyN_ZeroSize_Hang(t *testing.T) {
-	// Этот тест демонстрирует баг: если reader не возвращает EOF сразу,
-	// а возвращает 0, nil, цикл станет бесконечным.
-	// Для чистоты теста используем mock, который эмулирует "зависание".
-
-	reader := &mockReader{readFunc: func(p []byte) (int, error) {
-		return 0, nil // Валидный ответ для io.Reader, означающий "пока нет данных, но и не EOF"
-	}}
-
-	done := make(chan struct{})
-	go func() {
-		CopyN(&bytes.Buffer{}, reader, 0)
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		// Если мы здесь, значит функция отработала (в текущей реализации это не так, она зависнет)
-	case <-time.After(100 * time.Millisecond):
-		t.Fatal("CopyN hung on size=0 and 0,nil reader response (infinite loop)")
+func TestCopyN_ZeroSize(t *testing.T) {
+	if _, err := CopyN(&bytes.Buffer{}, bytes.NewReader(nil), 0); err == nil {
+		t.Fatal("CopyN() with a zero buffer size succeeded")
 	}
+}
+
+func TestCopyB_ShortReads(t *testing.T) {
+	input := []byte("short reads must not truncate the stream")
+	output := &bytes.Buffer{}
+	n, err := CopyB(output, &shortReader{data: input, chunkSize: 2}, make([]byte, 16))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != len(input) || !bytes.Equal(output.Bytes(), input) {
+		t.Fatalf("CopyB() copied %d bytes %q, want %d bytes %q", n, output.Bytes(), len(input), input)
+	}
+}
+
+func TestCopyB_PartialWriteErrorCountsWrittenBytes(t *testing.T) {
+	wantErr := errors.New("partial write")
+	n, err := CopyB(&mockWriter{writeFunc: func([]byte) (int, error) {
+		return 2, wantErr
+	}}, strings.NewReader("data"), make([]byte, 8))
+	if n != 2 {
+		t.Fatalf("CopyB() count = %d, want 2", n)
+	}
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("CopyB() error = %v, want %v", err, wantErr)
+	}
+}
+
+type shortReader struct {
+	data      []byte
+	chunkSize int
+}
+
+func (r *shortReader) Read(dst []byte) (int, error) {
+	if len(r.data) == 0 {
+		return 0, io.EOF
+	}
+	n := min(len(dst), min(len(r.data), r.chunkSize))
+	copy(dst, r.data[:n])
+	r.data = r.data[n:]
+	return n, nil
 }

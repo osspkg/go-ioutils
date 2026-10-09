@@ -6,6 +6,7 @@
 package fs
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -80,7 +81,7 @@ func ListFiles(dir string, handler func(path string, fi fs.FileInfo)) error {
 }
 
 func RewriteFile(filename string, call func([]byte) ([]byte, error)) error {
-	var mode fs.FileMode = 0755
+	var mode fs.FileMode = 0644
 
 	if !FileExist(filename) {
 		if err := os.WriteFile(filename, []byte(""), mode); err != nil {
@@ -113,12 +114,18 @@ func CopyFile(dst, src string, mode os.FileMode) error {
 	}
 	defer source.Close() // nolint: errcheck
 
+	sourceInfo, err := source.Stat()
+	if err != nil {
+		return err
+	}
+	if destinationInfo, err := os.Stat(dst); err == nil && os.SameFile(sourceInfo, destinationInfo) {
+		return fmt.Errorf("source and destination refer to the same file")
+	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+
 	if mode == 0 {
-		fi, err0 := source.Stat()
-		if err0 != nil {
-			return err0
-		}
-		mode = fi.Mode()
+		mode = sourceInfo.Mode()
 	}
 
 	dist, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_TRUNC, mode)

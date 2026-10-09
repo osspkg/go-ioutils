@@ -56,6 +56,23 @@ func TestUnit_New(t *testing.T) {
 	casecheck.Equal(t, []string{}, c.Keys())
 }
 
+func TestReplaceCopiesInputAndAcceptsNil(t *testing.T) {
+	c := cache.New[string, string]()
+	input := map[string]string{"key": "original"}
+	c.Replace(input)
+	input["key"] = "changed outside cache"
+	got, ok := c.Get("key")
+	if !ok || got != "original" {
+		t.Fatalf("Get after Replace() = (%q, %t), want (%q, true)", got, ok, "original")
+	}
+
+	c.Replace(nil)
+	c.Set("after-nil-replace", "works")
+	if got, ok := c.Get("after-nil-replace"); !ok || got != "works" {
+		t.Fatalf("Get after Replace(nil) = (%q, %t), want (%q, true)", got, ok, "works")
+	}
+}
+
 type testValue struct {
 	Val string
 	TS  int64

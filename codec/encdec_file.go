@@ -34,5 +34,5 @@ func (v FileEncoder) Encode(configs ...any) error {
 	if err := blob.Encode(configs...); err != nil {
 		return err
 	}
-	return os.WriteFile(string(v), blob.Blob, 0755)
+	return os.WriteFile(string(v), blob.Blob, 0644)
 }

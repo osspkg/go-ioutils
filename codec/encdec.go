@@ -29,7 +29,7 @@ const (
 var (
 	ErrUnsupportedFormat = errors.New("format is not a supported")
 
-	_default = newEncoders().
+	defaultCodecs = newEncoders().
 			Add(ExtYAMLs, SimpleCodec(yaml.Marshal, yaml.Unmarshal, BytesJoin)).
 			Add(ExtYAML, SimpleCodec(yaml.Marshal, yaml.Unmarshal, BytesJoin)).
 			Add(ExtJSON, SimpleCodec(json.Marshal, json.Unmarshal, MapJoin)).
@@ -51,7 +51,7 @@ type (
 )
 
 func AddCodec(ext string, c Codec) {
-	_default.Add(ext, c)
+	defaultCodecs.Add(ext, c)
 }
 
 func newEncoders() *encoders {

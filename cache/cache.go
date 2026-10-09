@@ -13,14 +13,14 @@ import (
 )
 
 type (
-	_cache[K comparable, V any] struct {
+	store[K comparable, V any] struct {
 		list map[K]V
 		mux  sync.RWMutex
 	}
 )
 
 func New[K comparable, V any](opts ...Option[K, V]) Cache[K, V] {
-	obj := &_cache[K, V]{
+	obj := &store[K, V]{
 		list: make(map[K]V, 100),
 	}
 
@@ -31,14 +31,14 @@ func New[K comparable, V any](opts ...Option[K, V]) Cache[K, V] {
 	return obj
 }
 
-func (v *_cache[K, V]) Size() int {
+func (v *store[K, V]) Size() int {
 	v.mux.RLock()
 	defer v.mux.RUnlock()
 
 	return len(v.list)
 }
 
-func (v *_cache[K, V]) Has(key K) bool {
+func (v *store[K, V]) Has(key K) bool {
 	v.mux.RLock()
 	defer v.mux.RUnlock()
 
@@ -47,7 +47,7 @@ func (v *_cache[K, V]) Has(key K) bool {
 	return ok
 }
 
-func (v *_cache[K, V]) Get(key K) (V, bool) {
+func (v *store[K, V]) Get(key K) (V, bool) {
 	v.mux.RLock()
 	defer v.mux.RUnlock()
 
@@ -60,7 +60,7 @@ func (v *_cache[K, V]) Get(key K) (V, bool) {
 	return item, true
 }
 
-func (v *_cache[K, V]) One() (key K, val V, ok bool) {
+func (v *store[K, V]) One() (key K, val V, ok bool) {
 	keys := v._keys(30)
 	if len(keys) == 0 {
 		return
@@ -74,7 +74,7 @@ func (v *_cache[K, V]) One() (key K, val V, ok bool) {
 	return
 }
 
-func (v *_cache[K, V]) Extract(key K) (V, bool) {
+func (v *store[K, V]) Extract(key K) (V, bool) {
 	v.mux.Lock()
 	defer v.mux.Unlock()
 
@@ -89,32 +89,36 @@ func (v *_cache[K, V]) Extract(key K) (V, bool) {
 	return item, true
 }
 
-func (v *_cache[K, V]) Set(key K, value V) {
+func (v *store[K, V]) Set(key K, value V) {
 	v.mux.Lock()
 	defer v.mux.Unlock()
 
 	v.list[key] = value
 }
 
-func (v *_cache[K, V]) Replace(data map[K]V) {
+func (v *store[K, V]) Replace(data map[K]V) {
 	v.mux.Lock()
 	defer v.mux.Unlock()
 
-	v.list = data
+	replacement := make(map[K]V, len(data))
+	for key, value := range data {
+		replacement[key] = value
+	}
+	v.list = replacement
 }
 
-func (v *_cache[K, V]) Del(key K) {
+func (v *store[K, V]) Del(key K) {
 	v.mux.Lock()
 	defer v.mux.Unlock()
 
 	delete(v.list, key)
 }
 
-func (v *_cache[K, V]) Keys() []K {
+func (v *store[K, V]) Keys() []K {
 	return v._keys(v.Size())
 }
 
-func (v *_cache[K, V]) _keys(limit int) []K {
+func (v *store[K, V]) _keys(limit int) []K {
 	v.mux.RLock()
 	defer v.mux.RUnlock()
 
@@ -131,16 +135,14 @@ func (v *_cache[K, V]) _keys(limit int) []K {
 	return result
 }
 
-func (v *_cache[K, V]) Flush() {
+func (v *store[K, V]) Flush() {
 	v.mux.Lock()
 	defer v.mux.Unlock()
 
-	for k := range v.list {
-		delete(v.list, k)
-	}
+	clear(v.list)
 }
 
-func (v *_cache[K, V]) Yield(limit int) iter.Seq2[K, V] {
+func (v *store[K, V]) Yield(limit int) iter.Seq2[K, V] {
 	if limit < 1 {
 		limit = v.Size()
 	}

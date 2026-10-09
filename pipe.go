@@ -22,41 +22,5 @@ func Pipe(w io.Writer, r io.Reader, size int) (int, error) {
 		return 0, errors.New("reader must not be nil")
 	}
 
-	buff := make([]byte, size)
-
-	n := 0
-
-	for {
-		rn, re := r.Read(buff)
-		if rn < 0 {
-			return n, errors.New("reader err: negative read bytes")
-		}
-
-		if rn > 0 {
-			wn, we := w.Write(buff[:rn])
-			if we != nil {
-				return n, errors.Wrapf(we, "writer err")
-			}
-
-			n += wn
-
-			if re != nil {
-				if errors.Is(re, io.EOF) {
-					return n, nil
-				}
-				return n, re
-			}
-
-			if wn != rn {
-				return n, io.ErrShortWrite
-			}
-		}
-
-		if re != nil {
-			if errors.Is(re, io.EOF) {
-				return n, nil
-			}
-			return n, re
-		}
-	}
+	return copyBuffer(w, r, make([]byte, size))
 }

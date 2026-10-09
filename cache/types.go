@@ -25,7 +25,7 @@ type Cache[K comparable, V any] interface {
 	Flush()
 }
 
-type Option[K comparable, V any] func(*_cache[K, V])
+type Option[K comparable, V any] func(*store[K, V])
 
 type Timestamp interface {
 	Timestamp() int64

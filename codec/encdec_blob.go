@@ -24,7 +24,7 @@ func (v *BlobEncoder) Decode(configs ...any) error {
 		return nil
 	}
 
-	c, err := _default.Get(v.Ext)
+	c, err := defaultCodecs.Get(v.Ext)
 	if err != nil {
 		return fmt.Errorf("get codec: %w", err)
 	}
@@ -40,7 +40,7 @@ func (v *BlobEncoder) Encode(configs ...any) error {
 	v.mux.Lock()
 	defer v.mux.Unlock()
 
-	c, err := _default.Get(v.Ext)
+	c, err := defaultCodecs.Get(v.Ext)
 	if err != nil {
 		return fmt.Errorf("get codec: %w", err)
 	}

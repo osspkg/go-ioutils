@@ -13,6 +13,8 @@ import (
 
 const packSize = 512
 
+const maxConsecutiveEmptyReads = 100
+
 func Copy(w io.Writer, r io.Reader) (int, error) {
 	return CopyN(w, r, packSize)
 }
@@ -28,8 +30,7 @@ func CopyN(w io.Writer, r io.Reader, size int) (int, error) {
 }
 
 func CopyB(w io.Writer, r io.Reader, buff []byte) (int, error) {
-	size := len(buff)
-	if size <= 0 {
+	if len(buff) <= 0 {
 		return 0, errors.New("size must be greater than zero")
 	}
 	if w == nil {
@@ -39,43 +40,41 @@ func CopyB(w io.Writer, r io.Reader, buff []byte) (int, error) {
 		return 0, errors.New("reader must not be nil")
 	}
 
-	n := 0
+	return copyBuffer(w, r, buff)
+}
+
+func copyBuffer(w io.Writer, r io.Reader, buff []byte) (int, error) {
+	total := 0
+	emptyReads := 0
 
 	for {
-		rn, re := r.Read(buff)
+		rn, readErr := r.Read(buff)
 		if rn < 0 {
-			return n, errors.New("reader err: negative read bytes")
+			return total, errors.New("reader err: negative read bytes")
 		}
 
 		if rn > 0 {
-			wn, we := w.Write(buff[:rn])
-			if we != nil {
-				return n, errors.Wrapf(we, "writer err")
+			wn, writeErr := w.Write(buff[:rn])
+			total += wn
+			if writeErr != nil {
+				return total, errors.Wrapf(writeErr, "writer err")
 			}
-
-			n += wn
-
-			if re != nil {
-				if errors.Is(re, io.EOF) {
-					return n, nil
-				}
-				return n, re
-			}
-
 			if wn != rn {
-				return n, io.ErrShortWrite
+				return total, io.ErrShortWrite
+			}
+			emptyReads = 0
+		} else if readErr == nil {
+			emptyReads++
+			if emptyReads >= maxConsecutiveEmptyReads {
+				return total, io.ErrNoProgress
 			}
 		}
 
-		if re != nil {
-			if errors.Is(re, io.EOF) {
-				return n, nil
+		if readErr != nil {
+			if errors.Is(readErr, io.EOF) {
+				return total, nil
 			}
-			return n, re
-		}
-
-		if rn < size {
-			return n, nil
+			return total, readErr
 		}
 	}
 }

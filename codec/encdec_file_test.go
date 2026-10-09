@@ -6,7 +6,7 @@
 package codec
 
 import (
-	"os"
+	"path/filepath"
 	"testing"
 
 	"go.osspkg.com/casecheck"
@@ -28,18 +28,18 @@ func TestFile_File_EncodeDecode(t *testing.T) {
 		Data2 TestDataItem2 `yaml:"data-2"`
 	}
 
-	os.Remove("/tmp/bdsbdnsabkjlfadlksjfbkljd.yaml")
+	filename := filepath.Join(t.TempDir(), "config.yaml")
 
 	model1 := &TestData1{Data1: TestDataItem1{AA: "123", BB: true}}
 	model2 := &TestData2{Data2: TestDataItem2{CC: "qwer", DD: -100}}
 
-	err := FileEncoder("/tmp/bdsbdnsabkjlfadlksjfbkljd.yaml").Encode(model1, model2)
+	err := FileEncoder(filename).Encode(model1, model2)
 	casecheck.NoError(t, err)
 
 	model11 := &TestData1{}
 	model22 := &TestData2{}
 
-	err = FileEncoder("/tmp/bdsbdnsabkjlfadlksjfbkljd.yaml").Decode(model11, model22)
+	err = FileEncoder(filename).Decode(model11, model22)
 	casecheck.NoError(t, err)
 
 	casecheck.Equal(t, model1, model11)

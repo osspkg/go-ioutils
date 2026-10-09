@@ -10,7 +10,6 @@ import (
 	"io"
 	"strings"
 	"testing"
-	"time"
 
 	"go.osspkg.com/errors"
 )
@@ -142,19 +141,35 @@ func TestPipe(t *testing.T) {
 // Тест на защиту от зависания при некорректном поведении io.Reader
 func TestPipe_InfiniteLoopOnZeroRead(t *testing.T) {
 	reader := &mockReader{readFunc: func(p []byte) (int, error) {
-		return 0, nil // Валидный, но "зависающий" ответ для io.Reader
+		return 0, nil
 	}}
 
-	done := make(chan struct{})
-	go func() {
-		Pipe(&bytes.Buffer{}, reader, 10)
-		close(done)
-	}()
+	if _, err := Pipe(&bytes.Buffer{}, reader, 10); !errors.Is(err, io.ErrNoProgress) {
+		t.Fatalf("Pipe() error = %v, want %v", err, io.ErrNoProgress)
+	}
+}
 
-	select {
-	case <-done:
-		t.Fatal("Pipe returned (unexpected for 0, nil reader, but acceptable if reader is fixed)")
-	case <-time.After(100 * time.Millisecond):
-		t.Log("Pipe hung on 0, nil reader response (infinite loop)")
+func TestPipe_ShortReads(t *testing.T) {
+	input := []byte("short reads must not truncate the stream")
+	output := &bytes.Buffer{}
+	n, err := Pipe(output, &shortReader{data: input, chunkSize: 2}, 16)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != len(input) || !bytes.Equal(output.Bytes(), input) {
+		t.Fatalf("Pipe() copied %d bytes %q, want %d bytes %q", n, output.Bytes(), len(input), input)
+	}
+}
+
+func TestPipe_PartialWriteErrorCountsWrittenBytes(t *testing.T) {
+	wantErr := errors.New("partial write")
+	n, err := Pipe(&mockWriter{writeFunc: func([]byte) (int, error) {
+		return 2, wantErr
+	}}, strings.NewReader("data"), 8)
+	if n != 2 {
+		t.Fatalf("Pipe() count = %d, want 2", n)
+	}
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("Pipe() error = %v, want %v", err, wantErr)
 	}
 }
